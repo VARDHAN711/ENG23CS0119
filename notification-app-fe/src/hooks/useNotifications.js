@@ -1,20 +1,36 @@
-import { useState, useEffect } from "react";
-import { fetchNotifications } from "../apis/notifications";
+import { useState, useEffect } from 'react';
+import { fetchNotifications } from '../api/notifications';
+import { Log } from '../logger';
 
-export function useNotifications() {
+export function useNotifications(filter, page) {
   const [notifications, setNotifications] = useState([]);
-  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const load = async () => {
-      const data = await fetchNotifications();
-      setNotifications(data.notifications ?? []);
+      try {
+        setLoading(true);
+        setError(null);
+        Log('frontend', 'info', 'hook', `loading notifications filter=${filter} page=${page}`);
+
+        const data = await fetchNotifications(filter, page);
+        setNotifications(data.data ?? []);
+        // backend doesnt paginate yet so defaulting to 1
+        setTotalPages(data.totalPages ?? 1);
+
+        Log('frontend', 'info', 'hook', `notifications loaded count=${data.count}`);
+      } catch (err) {
+        Log('frontend', 'error', 'hook', `failed to load notifications: ${err.message}`);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
     };
 
     load();
-  }, [notifications]);
+  }, [filter, page]); // only re-run when filter or page changes
 
-  const totalPages = 0;
-
-  return { notifications, total, totalPages, loading: false, error: true };
+  return { notifications, totalPages, loading, error };
 }
